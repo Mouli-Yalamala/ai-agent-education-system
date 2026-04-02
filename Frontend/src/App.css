@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap');
+
+:root {
+  --bg-color: #f4faff;
+  --card-bg: #ffffff;
+  --primary: #4ab8f9;
+  --primary-hover: #33a1e1;
+  --text-dark: #2c3e50;
+  --text-light: #5f7a93;
+  --success: #6cd99b;
+  --error: #ff7a7a;
+  --shadow: 0 10px 30px rgba(74, 184, 249, 0.1);
+  --radius: 20px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  font-family: 'Nunito', sans-serif;
+  color: var(--text-dark);
+}
+
+.app-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.header h1 {
+  font-size: 3rem;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.header p {
+  color: var(--text-light);
+  font-size: 1.2rem;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 2rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+  border: 2px solid rgba(74, 184, 249, 0.05);
+}
+
+.input-section h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--primary);
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-dark);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.1rem;
+  border: 2px solid #e1eff8;
+  border-radius: 12px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+  border-color: var(--primary);
+}
+
+.generate-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.3s;
+  box-shadow: 0 4px 15px rgba(74, 184, 249, 0.3);
+}
+
+.generate-btn:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+.generate-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.error-banner {
+  background-color: #fff0f0;
+  color: var(--error);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.loading-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #e1eff8;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.result-section h3 {
+  margin-top: 0;
+  color: var(--primary);
+  border-bottom: 2px solid #f0f7fb;
+  padding-bottom: 0.5rem;
+}
+
+.content-box h4 {
+  margin-top: 1.5rem;
+  color: var(--text-dark);
+}
+
+.explanation {
+  line-height: 1.6;
+  font-size: 1.1rem;
+  background: #fbfbfb;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border-left: 4px solid var(--primary);
+}
+
+.mcq-item {
+  background: #fbfbfb;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.mcq-item ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.mcq-item li {
+  background: white;
+  padding: 0.8rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  border: 1px solid #e1eff8;
+}
+
+.answer {
+  margin-top: 1rem;
+  color: var(--success);
+}
+
+.review-content.pass {
+  background: #f3faf5;
+  border-color: var(--success);
+}
+
+.review-content.fail {
+  background: #fff5f5;
+  border-color: var(--error);
+}
+
+.status-badge {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.pass-text {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.feedback-list {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  color: var(--error);
+}
+
+.refined-content {
+  border: 2px solid var(--primary);
+  background: #f4faff;
+}
+
+.refined-intro {
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 1.5rem;
+}
