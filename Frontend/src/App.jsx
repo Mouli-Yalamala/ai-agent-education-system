@@ -9,9 +9,13 @@ function App() {
   const [error, setError] = useState('')
 
   const handleGenerate = async () => {
+    if (!grade || isNaN(parseInt(grade)) || grade < 1 || grade > 12) {
+      setError('Please enter a valid Grade Level (1-12).');
+      return;
+    }
     if (!topic.trim()) {
-      setError('Please enter a topic!')
-      return
+      setError('Please enter a topic!');
+      return;
     }
     setLoading(true)
     setError('')
@@ -30,7 +34,16 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || data.error || 'API Error');
+        let errorMsg = data.error || 'API Error';
+        // Handle FastAPI Pydantic Validation [object Object] errors gracefully
+        if (data.detail) {
+          if (typeof data.detail === 'string') {
+            errorMsg = data.detail;
+          } else if (Array.isArray(data.detail)) {
+            errorMsg = data.detail.map(err => err.msg).join(', ');
+          }
+        }
+        throw new Error(errorMsg);
       }
 
       setResult(data)

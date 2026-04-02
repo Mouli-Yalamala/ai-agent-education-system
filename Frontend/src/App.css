@@ -143,7 +143,9 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .result-section h3 {
@@ -229,4 +231,33 @@ body {
   font-weight: 600;
   color: var(--primary);
   margin-bottom: 1.5rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 600px) {
+  .app-container {
+    padding: 1rem;
+  }
+
+  /* Scale down the title font specifically for mobile */
+  .header h1 {
+    font-size: 2rem;
+  }
+
+  .header p {
+    font-size: 1rem;
+  }
+
+  .card {
+    padding: 1.5rem;
+  }
+
+  .input-section h2 {
+    font-size: 1.4rem;
+  }
+
+  .generate-btn {
+    padding: 0.8rem;
+    font-size: 1.1rem;
+  }
 }
