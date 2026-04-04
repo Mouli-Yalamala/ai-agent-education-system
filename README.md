@@ -3,7 +3,7 @@
 This repository contains a modular AI agent pipeline that automatically generates, reviews, and refines educational content. The system uses a FastAPI backend to orchestrate interactions with the Groq API, and a React frontend for the user interface.
 
 ## Live Demo
-**[Insert Deployed Frontend URL Here]**
+**https://ai-agent-education-system.vercel.app/**
 
 **CRITICAL NOTE FOR REVIEWERS:** 
 The API backend is hosted on a free-tier cloud service which automatically spins down after periods of inactivity. **The very first time you click "Generate," it may take up to 60 seconds for the backend server to wake up.** Please be patient during the first generation! Subsequent requests will be instantaneous.
