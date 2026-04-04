@@ -22,7 +22,6 @@ function App() {
     setResult(null)
 
     try {
-      // If VITE_API_URL exists in the environment (like on Vercel), use it. Otherwise, assume local testing on 8000.
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
       const response = await fetch(`${API_BASE_URL}/generate`, {
@@ -35,7 +34,6 @@ function App() {
 
       if (!response.ok) {
         let errorMsg = data.error || 'API Error';
-        // Handle FastAPI Pydantic Validation [object Object] errors gracefully
         if (data.detail) {
           if (typeof data.detail === 'string') {
             errorMsg = data.detail;
@@ -58,8 +56,9 @@ function App() {
     if (!content) return null;
     return (
       <div className="content-box">
-        <h4>Explanation</h4>
-        <p className="explanation">{content.explanation}</p>
+        <h4>Lesson Explanation</h4>
+        <p className="explanation">{content.explanation.text}</p>
+        
         <h4>Multiple Choice Questions</h4>
         <div className="mcq-list">
           {content.mcqs.map((mcq, idx) => (
@@ -67,13 +66,30 @@ function App() {
               <p className="question"><strong>Q{idx + 1}:</strong> {mcq.question}</p>
               <ul>
                 {mcq.options.map((opt, i) => (
-                  <li key={i}>{opt}</li>
+                  <li key={i} className={i === mcq.correct_index ? 'correct-option' : ''}>{opt}</li>
                 ))}
               </ul>
-              <p className="answer"><strong>Correct Answer:</strong> {mcq.answer}</p>
+              <p className="answer"><strong>Correct Answer:</strong> {mcq.options[mcq.correct_index]}</p>
             </div>
           ))}
         </div>
+
+        {content.teacher_notes && (
+          <div className="teacher-notes">
+            <h4>👨‍🏫 Teacher's Guide</h4>
+            <p><strong>Learning Objective:</strong> {content.teacher_notes.learning_objective}</p>
+            {content.teacher_notes.common_misconceptions?.length > 0 && (
+              <>
+                <p><strong>Common Misconceptions:</strong></p>
+                <ul>
+                  {content.teacher_notes.common_misconceptions.map((misc, i) => (
+                    <li key={i}>{misc}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
       </div>
     )
   }
@@ -82,7 +98,7 @@ function App() {
     <div className="app-container">
       <header className="header">
         <h1>✨ AI Study Buddy ✨</h1>
-        <p>Your interactive learning assistant</p>
+        <p>Your interactive, safely governed learning assistant</p>
       </header>
 
       <main className="main-content">
@@ -120,44 +136,64 @@ function App() {
         {loading && (
           <div className="loading-card card">
             <div className="spinner"></div>
-            <p>The AI is writing your lesson...</p>
+            <p>The AI pipeline is writing, reviewing, and scaling your lesson...</p>
           </div>
         )}
 
         {result && !loading && (
           <div className="results-container">
-            <section className="result-section card initial-content">
-              <h3>Step 1: Generated Lesson</h3>
-              {renderContent(result.initial_content)}
-            </section>
-
-            <section className={`result-section card review-content ${result.review?.status === 'pass' ? 'pass' : 'fail'}`}>
-              <h3>Step 2: AI Reviewer</h3>
-              <div className="status-badge">
-                Status: {result.review?.status === 'pass' ? '✅ PASS' : '❌ NEEDS IMPROVEMENT'}
-              </div>
-              {result.review?.status === 'fail' && (
-                <div className="feedback-list">
-                  <p><strong>Feedback:</strong></p>
-                  <ul>
-                    {result.review?.feedback.map((fb, idx) => (
-                      <li key={idx}>{fb}</li>
-                    ))}
-                  </ul>
+            {/* The Final Product */}
+            <section className="result-section card final-content">
+              <h3>{result.final.status === 'approved' ? '✨ Your Generated Lesson' : '❌ Pipeline Rejected'}</h3>
+              
+              {/* Tags Section */}
+              {result.tags && (
+                <div className="tags-container">
+                  <span className="tag-pill subject">{result.tags.subject}</span>
+                  <span className="tag-pill difficulty">{result.tags.difficulty}</span>
+                  <span className="tag-pill blooms">{result.tags.blooms_level}</span>
                 </div>
               )}
-              {result.review?.status === 'pass' && (
-                <p className="pass-text">Perfect! This lesson is ready for you!</p>
-              )}
+
+              {result.final.content ? renderContent(result.final.content) : 
+                <p className="error-banner">The AI could not generate mathematically safe educational content within 3 refinement attempts. Please try a different topic.</p>
+              }
             </section>
 
-            {result.refined_content && (
-              <section className="result-section card refined-content">
-                <h3>Step 3: Improved Lesson</h3>
-                <p className="refined-intro">The generator fixed the lesson based on the reviewer's feedback!</p>
-                {renderContent(result.refined_content)}
-              </section>
-            )}
+            {/* Audit Trail / Behind the Scenes */}
+            <section className="result-section card audit-trail">
+              <h3>🔍 Behind the Scenes: AI Evaluation Pipeline</h3>
+              <p className="trail-desc">Watch how the AI recursively critiqued and refined this content:</p>
+              
+              <div className="attempts-list">
+                {result.attempts.map((attempt, index) => (
+                  <div key={index} className={`attempt-card ${attempt.review.pass ? 'pass' : 'fail'}`}>
+                    <div className="attempt-header">
+                      <h4>Attempt {attempt.attempt}</h4>
+                      <span className="status-badge">{attempt.review.pass ? '✅ PASSED' : '❌ FAILED'}</span>
+                    </div>
+                    
+                    <div className="score-bars">
+                      <div className={`score-item s-${attempt.review.scores.age_appropriateness}`}>Age Match: {attempt.review.scores.age_appropriateness}/5</div>
+                      <div className={`score-item s-${attempt.review.scores.correctness}`}>Correctness: {attempt.review.scores.correctness}/5</div>
+                      <div className={`score-item s-${attempt.review.scores.clarity}`}>Clarity: {attempt.review.scores.clarity}/5</div>
+                      <div className={`score-item s-${attempt.review.scores.coverage}`}>Coverage: {attempt.review.scores.coverage}/5</div>
+                    </div>
+
+                    {!attempt.review.pass && attempt.review.feedback && attempt.review.feedback.length > 0 && (
+                       <div className="feedback-errors">
+                          <p><strong>Errors to Refine:</strong></p>
+                          <ul>
+                            {attempt.review.feedback.map((fb, fidx) => (
+                              <li key={fidx}><code>{fb.field}</code>: {fb.issue}</li>
+                            ))}
+                          </ul>
+                       </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         )}
       </main>

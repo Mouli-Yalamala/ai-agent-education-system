@@ -1,99 +1,121 @@
-import logging
-from unittest.mock import patch
-from models import GeneratorOutput, MCQ
+import pytest
+from unittest.mock import patch, MagicMock
+
+from models import InputSchema, GeneratorOutput, ReviewerOutput, Explanation, MCQ, TeacherNotes
+from agents import generator
 from pipeline import run_pipeline
 
-# Ensure clear output without interfering logger spam during tests
-logging.basicConfig(level=logging.WARNING)
 
-def test_normal_case():
-    print("\n--- Running Test Case 1: Normal Case (Should Pass) ---")
-    grade = 4
-    topic = "Types of angles"
-    
-    result = run_pipeline(grade, topic)
-    
-    # Validation
-    assert result.get("error") is None, f"Pipeline threw an error: {result.get('error')}"
-    
-    initial = result.get("initial_content")
-    review = result.get("review")
-    refined = result.get("refined_content")
-    
-    print(f"Reviewer Status: {review.status.upper()}")
-    
-    if review.status == "pass":
-        assert refined is None, "Refined content should be None if review passed."
-        print("Test 1 Passed: Agent passed smoothly, no retry triggered.")
+# --- DUMMY DATA HELPERS --- #
+
+def get_dummy_generator_output():
+    """Generates a perfectly valid Pydantic dummy structure for the Generator Output"""
+    return GeneratorOutput(
+        explanation=Explanation(text="Dummy explanation text", grade=5),
+        mcqs=[
+            MCQ(question="Dummy Q1", options=["1", "2", "3", "4"], correct_index=0),
+            MCQ(question="Dummy Q2", options=["A", "B", "C", "D"], correct_index=1)
+        ],
+        teacher_notes=TeacherNotes(learning_objective="Learn dummy things", common_misconceptions=["Misconception"])
+    )
+
+def get_dummy_reviewer_output(is_pass: bool):
+    """Generates a dummy Reviewer Output based on requested pass/fail status."""
+    if is_pass:
+        return ReviewerOutput.model_validate({
+            "scores": {"age_appropriateness": 5, "correctness": 5, "clarity": 5, "coverage": 5},
+            "pass": True,
+            "feedback": []
+        })
     else:
-        assert refined is not None, "Pipeline must generate refined content if it fails."
-        print("Test 1 Note: Organic failure occurred. LLMs can be strict. Retry logic handled it successfully.")
+        return ReviewerOutput.model_validate({
+            "scores": {"age_appropriateness": 1, "correctness": 1, "clarity": 1, "coverage": 1},
+            "pass": False,
+            "feedback": [{"field": "explanation.text", "issue": "Simulated failure issue"}]
+        })
 
-def test_forced_fail_case():
-    print("\n--- Running Test Case 2: Forced Fail Case ---")
-    # We use patch to simulate the generator throwing a bad output deliberately on the very first try.
-    grade = 2
-    topic = "Addition"
-    
-    original_generator = __import__('agents').generator
-    state = {"called": False}
-    
-    def fake_generator(grd, tpc, feedback=None):
-        if not state["called"]:
-            state["called"] = True
-            # Intentionally bad output for a 2nd grader
-            return GeneratorOutput(
-                explanation="The concept of addition is intrinsically tied to establishing a bijective function combining cardinalities of disjoint sets, mapped strictly to integer progression.",
-                mcqs=[
-                    MCQ(question="What is 1+1?", options=["2", "3", "4", "5"], answer="2"),
-                    MCQ(question="What is 2+2?", options=["4", "5", "6", "7"], answer="4")
-                ]
-            )
-        else:
-            # Second call (retry) runs the real generative logic to "fix" it.
-            return original_generator(grd, tpc, feedback)
 
-    with patch('pipeline.generator', side_effect=fake_generator):
-        result = run_pipeline(grade, topic)
-        review = result.get("review")
+# --- TEST CASES --- #
+
+@patch('agents.client.chat.completions.create')
+def test_schema_validation_failure_handling(mock_create_llm):
+    """
+    Test Case 1: Schema Validation Failure Handling
+    Simulates the LLM outright hallucinating string/bad JSON data instead of the requested Pydantic schema structure.
+    Ensures that the generator catches ValidationError and triggers exactly 1 retry loop before gracefully raising ValueError.
+    """
+    
+    # Create a mock response object that returns bad text payload
+    bad_response = MagicMock()
+    bad_response.choices = [MagicMock(message=MagicMock(content='{"completely": "invalid_schema"}'))]
+    
+    # We assign this to always return bad data
+    mock_create_llm.return_value = bad_response
+    
+    with pytest.raises(ValueError, match="Generation failed after 2 attempts due to validation errors"):
+        # The generator will attempt once, fail natively mapping to Pydantic, catch it, and attempt a 2nd time before crashing purposefully
+        generator(grade=5, topic="Volcanoes")
         
-        print(f"Reviewer Status: {review.status.upper()}")
-        print(f"Reviewer Feedback Provided:")
-        for fb in review.feedback:
-            print(f"  - {fb}")
-            
-        assert review.status == "fail", "Reviewer failed to catch the overly complex text."
-        assert result.get("refined_content") is not None, "Pipeline did not trigger a retry after failure."
-        
-        print("Test 2 Passed: Reviewer successfully failed bad content and triggered a retry.")
+    # Crucial Assertion: Prove that the LLM was actually redundantly summoned 2 times, verifying the internal loop
+    assert mock_create_llm.call_count == 2
 
-def test_structure_validation():
-    print("\n--- Running Test Case 3: Structure Validation ---")
-    grade = 5
-    topic = "The Solar System"
-    
-    result = run_pipeline(grade, topic)
-    
-    assert "initial_content" in result, "Key 'initial_content' is missing."
-    assert "review" in result, "Key 'review' is missing."
-    assert "refined_content" in result, "Key 'refined_content' is missing."
-    assert result.get("error") is None, "Pipeline generated an internal error."
-    
-    initial = result["initial_content"]
-    assert hasattr(initial, "explanation") and len(initial.explanation.strip()) > 0, "Explanation is missing or empty."
-    assert hasattr(initial, "mcqs") and len(initial.mcqs) >= 2, "Less than 2 MCQs generated."
-    
-    for mcq in initial.mcqs:
-        assert len(mcq.options) == 4, f"MCQ requires 4 options, got {len(mcq.options)}."
-        assert mcq.answer in mcq.options, f"MCQ answer '{mcq.answer}' is not in options list."
-        
-    print(" Test 3 Passed: Structure conforms perfectly to requirements.")
 
-if __name__ == "__main__":
-    try:
-        test_normal_case()
-        test_forced_fail_case()
-        test_structure_validation()
-        print("\n All tests completed successfully.")
-    except AssertionError as e:
-        print(f"\nTest Failed: {e}")
+@patch('pipeline.generator')
+@patch('pipeline.reviewer')
+@patch('pipeline.refiner')
+def test_fail_refine_pass_flow(mock_refiner, mock_reviewer, mock_generator):
+    """
+    Test Case 2: Fail -> Refine -> Pass
+    Simulates the complete optimal bounded logic where attempt 1 fails mathematically, but attempt 2 successfully clears the hurdles.
+    """
+    mock_generator.return_value = get_dummy_generator_output()
+    mock_refiner.return_value = get_dummy_generator_output()
+    
+    # Reviewer behavior: Fail the initial review (Attempt 1), Pass the refined review (Attempt 2)
+    mock_reviewer.side_effect = [
+        get_dummy_reviewer_output(is_pass=False),  
+        get_dummy_reviewer_output(is_pass=True)
+    ]
+    
+    input_data = InputSchema(grade=5, topic="Fractions")
+    artifact = run_pipeline(input_data)
+    
+    # Validations mapping to architectural state boundaries
+    assert artifact.run_id is not None
+    assert artifact.timestamps.started_at is not None
+    
+    # Ensures it passed properly and terminated at step 2 automatically
+    assert artifact.final.status == "approved"
+    assert artifact.final.content is not None
+    
+    # Verifies execution boundaries
+    assert len(artifact.attempts) == 2      # Loop broke optimally right exactly at attempt 2
+    assert mock_reviewer.call_count == 2    # Reviewed the Draft + 1st Refinement
+    assert mock_refiner.call_count == 1     # Refined exactly once to bridge the gap
+
+
+@patch('pipeline.generator')
+@patch('pipeline.reviewer')
+@patch('pipeline.refiner')
+def test_fail_refine_fail_reject_flow(mock_refiner, mock_reviewer, mock_generator):
+    """
+    Test Case 3: Fail -> Refine -> Fail -> Reject 
+    Simulates total system refusal where the refiner cannot save the output structure within explicit mathematical boundaries.
+    """
+    mock_generator.return_value = get_dummy_generator_output()
+    mock_refiner.return_value = get_dummy_generator_output()
+    
+    # Infinite strict LLM refusal (Always mathematically evaluating below passing threshold)
+    mock_reviewer.return_value = get_dummy_reviewer_output(is_pass=False)
+    
+    input_data = InputSchema(grade=5, topic="Geometry")
+    artifact = run_pipeline(input_data)
+    
+    # Final state assertions verifying pipeline hard-stop abortion protocol
+    assert artifact.final.status == "rejected"
+    assert artifact.final.content is None     # Safety constraint: unreviewed elements are nullified
+    
+    # Execution counts bounds checks (Cannot arbitrarily overflow logic bounds into infinite loops)
+    assert len(artifact.attempts) == 3        # Ran across absolute max depth
+    assert mock_reviewer.call_count == 3      # Initial Review + Refine(1) Review + Refine(2) Review
+    assert mock_refiner.call_count == 2       # Reached explicit 2 max refinement limit bounds
